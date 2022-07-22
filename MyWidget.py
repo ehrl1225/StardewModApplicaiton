@@ -15,7 +15,7 @@ class MyWidget(QWidget):
     def initUI(self):
         self.lbs = [QLabel() for _ in range(1)]
 
-        self.lbs[0].setText("스팀 폴더")
+        self.lbs[0].setText("스타듀밸리 폴더")
 
         self.file_path_le = QLineEdit()
         self.file_search_btn = QPushButton("...")
@@ -25,14 +25,15 @@ class MyWidget(QWidget):
         self.mod_file_wg = ModFileWidget.ModFileWidget(self.fm)
         self.retext_file_wg = RetextrueFileWidget.RetextureFileWidget(self.fm)
         self.stardew_mods_wg = StardewModsWidget.StardewModsWidget(self.fm)
-        self.moded_file_list = QListWidget()
+        self.stats_tb = QTextBrowser()
+
+        self.file_path_le.setText(self.fm.stardew_url)
 
         self.file_tabs.addTab(self.mod_file_wg,"적용할 모드")
         self.file_tabs.addTab(self.retext_file_wg, "적용할 리텍")
         self.file_tabs.addTab(self.stardew_mods_wg,"적용된 모드")
         self.file_tabs.tabBarClicked.connect(self.tab_changed)
 
-        self.stats_tb = QTextBrowser()
 
         self.file_search_btn.pressed.connect(self.show_file_dialog)
 
@@ -58,7 +59,6 @@ class MyWidget(QWidget):
 
     def set_stardew_folder(self):
         self.fm.stardew_url = self.file_path_le.text()
-        self.fm.steam_url = os.path.abspath(os.path.join(self.fm.stardew_url, os.path.pardir))
         self.fm.stardew_mods_url = os.path.join(self.fm.stardew_url, "Mods")
         self.fm.stardew_portrait_url = os.path.join(self.fm.stardew_url, "Content", "Portraits")
         self.fm.stardew_character_url = os.path.join(self.fm.stardew_url, "Content", "Characters")
@@ -73,3 +73,6 @@ class MyWidget(QWidget):
         index = self.file_tabs.currentIndex()
         if index ==2:
             self.stardew_mods_wg.refresh()
+
+    def add_log(self, text):
+        self.stats_tb.append(text)

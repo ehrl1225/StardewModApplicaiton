@@ -35,6 +35,7 @@ class ModFileWidget(QWidget):
         self.apply_btn = QPushButton("적용")
 
         self.list.itemDoubleClicked.connect(self.remove_file)
+        self.apply_btn.pressed.connect(self.apply)
         self.setAcceptDrops(True)
         vbox = QVBoxLayout()
 

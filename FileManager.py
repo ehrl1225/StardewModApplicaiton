@@ -5,7 +5,7 @@ import json
 from PyQt5.QtGui import QPixmap
 
 # constants
-default_steam_url = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\"
+default_stardew_url = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Stardew Valley"
 unzip_folder = "unzip"
 backup_folder = "backup"
 backup_portrait_url = os.path.join(backup_folder, "Portraits")
@@ -17,8 +17,7 @@ xnb_extract_unpacked_folder = os.path.join(xnb_extract_folder,"UNPACKED")
 current_path = os.getcwd()
 
 # global variables
-steam_url = default_steam_url
-stardew_url = os.path.join(steam_url, "Stardew Valley")
+stardew_url = default_stardew_url
 stardew_mods_url = os.path.join(stardew_url, "Mods")
 stardew_portrait_url = os.path.join(stardew_url, "Content", "Portraits")
 stardew_character_url = os.path.join(stardew_url, "Content", "Characters")
@@ -176,11 +175,12 @@ def apply_retexture(file, apply_folder_name, backup_folder = None):
 def shutdown_SMAPI():
     os.system("taskkill -im StardewModdingAPI.exe")
 
-def openSteamFolder():
-    os.stat(steam_url)
-
 def openStardewFolder():
-    os.stat(stardew_url)
+    if os.path.isdir(stardew_url):
+        os.stat(stardew_url)
+        return True
+    else:
+        return False
 
 def simple_path(path, parent_path = None):
     if parent_path is None:
@@ -192,8 +192,12 @@ def simple_path(path, parent_path = None):
         return path
 
 def remove_stardew_mod(mod_folder):
-    path = os.path.join(stardew_mods_url, mod_folder)
-    shutil.rmtree(path)
+    try:
+        path = os.path.join(stardew_mods_url, mod_folder)
+        shutil.rmtree(path)
+        return True
+    except PermissionError:
+        return False
 
 def xnb_to_img(file):
     basename = os.path.basename(file)
@@ -204,10 +208,10 @@ def xnb_to_img(file):
     img, _ = os.path.splitext(basename)
     img = os.path.join(xnb_extract_unpacked_folder,(img + ".png"))
     pixmap = QPixmap(img)
-    for i in os.listdir(xnb_extract_unpacked_folder):
-        os.remove(os.path.join(xnb_extract_unpacked_folder,i))
-    for i in os.listdir(xnb_extract_packed_folder):
-        os.remove(os.path.join(xnb_extract_packed_folder,i))
+    # for i in os.listdir(xnb_extract_unpacked_folder):
+    #     os.remove(os.path.join(xnb_extract_unpacked_folder,i))
+    # for i in os.listdir(xnb_extract_packed_folder):
+    #     os.remove(os.path.join(xnb_extract_packed_folder,i))
     return pixmap
 
 

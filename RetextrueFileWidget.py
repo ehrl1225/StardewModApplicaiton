@@ -97,8 +97,8 @@ class RetextureFileWidget(QWidget):
                 item = add_item(simple_path, index)
                 item.chb.setCheckState(self.checked_file[i]["checked"])
         else:
-            item = QListWidgetItem(os.path.basename(self.entered_folder))
-            self.list.addItem(f"{item} (돌아가기)")
+            simple_path = FileManager.simple_path(self.entered_folder)
+            self.list.addItem(f"{simple_path} (돌아가기)")
 
             for index, i in enumerate(os.listdir(self.entered_folder)):
                 real_path = os.path.join(self.entered_folder,i)
@@ -151,7 +151,8 @@ class RetextureFileWidget(QWidget):
             index = self.list.currentRow()
         if index != -1:
             self.list.takeItem(index)
-            del self.file_list[index]
+            if self.entered_folder is None:
+                del self.file_list[index]
         self.refresh_list()
         self.preview()
 
@@ -159,7 +160,10 @@ class RetextureFileWidget(QWidget):
         current_index = self.list.currentRow()
 
         if current_index!=-1:
-            pixmap = FileManager.xnb_to_img(self.current_items_path[current_index])
+            if self.entered_folder:
+                pixmap = FileManager.xnb_to_img(self.current_items_path[current_index-1])
+            else:
+                pixmap = FileManager.xnb_to_img(self.current_items_path[current_index])
             self.preview_lb.setPixmap(pixmap)
         else:
             pixmap = QPixmap("img\\Stardew.webp")

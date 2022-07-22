@@ -13,13 +13,10 @@ class MyMainWindow(QMainWindow):
     def initUI(self):
         self.fm = FileManager
 
-        self.open_steam_folder= QAction(QIcon("img\\Steam.png"),"Open Steam folder")
         self.open_stardew_folder = QAction(QIcon("img\\Stardew.webp"),"Opne Stardew folder")
         self.open_stardew_folder.triggered.connect(partial(self.open_folder, FileManager.openStardewFolder))
-        self.open_steam_folder.triggered.connect(partial(self.open_folder,FileManager.openSteamFolder))
         menubar = self.menuBar()
         filemenu = menubar.addMenu("&File")
-        filemenu.addAction(self.open_steam_folder)
         filemenu.addAction(self.open_stardew_folder)
 
         self.wg = MyWidget.MyWidget(self.fm)
@@ -27,5 +24,7 @@ class MyMainWindow(QMainWindow):
         self.setCentralWidget(self.wg)
         self.show()
 
-    def open_folder(self):
-        pass
+    def open_folder(self, func):
+        state = func()
+        if state==-1:
+            self.wg.stats_tb.append("스타듀밸리 폴더를 찾지 못했습니다.")
