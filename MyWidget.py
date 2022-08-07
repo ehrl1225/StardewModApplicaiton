@@ -1,5 +1,6 @@
 import os.path
 from PyQt5.QtWidgets import *
+from PyQt5.QtCore import pyqtSlot
 import ModFileWidget
 import RetextrueFileWidget
 import StardewModsWidget
@@ -74,5 +75,6 @@ class MyWidget(QWidget):
         if index ==2:
             self.stardew_mods_wg.refresh()
 
+    @pyqtSlot(str)
     def add_log(self, text):
         self.stats_tb.append(text)

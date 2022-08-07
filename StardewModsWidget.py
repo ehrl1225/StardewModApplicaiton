@@ -46,6 +46,6 @@ class StardewModsWidget(QWidget):
                 state = FileManager.remove_stardew_mod(i)
                 if state:
                     self.list.takeItem(len(self.list_items)-1*(i+1))
-                    self.add_log(f"모드 {i.text()} 삭제됨")
+                    self.add_log.emit(f"모드 {i.text()} 삭제됨")
                 else:
-                    self.add_log("모드 삭제가 거부되었습니다.")
+                    self.add_log.emit("모드 삭제가 거부되었습니다.")

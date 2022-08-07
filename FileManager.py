@@ -3,6 +3,7 @@ import os
 import shutil
 import json
 from PyQt5.QtGui import QPixmap
+import pickle
 
 # constants
 default_stardew_url = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Stardew Valley"
@@ -15,6 +16,7 @@ xnb_extract_folder = "XNBExtract"
 xnb_extract_packed_folder = os.path.join(xnb_extract_folder,"PACKED")
 xnb_extract_unpacked_folder = os.path.join(xnb_extract_folder,"UNPACKED")
 current_path = os.getcwd()
+cash_file = "cash.pkl"
 
 # global variables
 stardew_url = default_stardew_url
@@ -45,13 +47,8 @@ if not os.path.isdir(backup_character_url):
 if not os.path.isdir(mods_folder):
     os.mkdir(mods_folder)
 
-def loadMods():
-    folders = []
-    for i in os.listdir(stardew_mods_url):
-        if os.path.isdir(os.path.join(stardew_mods_url, i)):
-            folders.append(i)
-    return folders
 
+# has return value
 def getModData(mod_folder):
     data = {}
     manifest_url = os.path.join(mod_folder, "manifest.json")
@@ -65,16 +62,6 @@ def getModData(mod_folder):
         data["Name"] = basename
         data["Version"] = None
     return data
-
-def isModFolder(folder):
-    if os.path.isfile(folder):
-        return False
-    for i in os.listdir(folder):
-        _,e = os.path.splitext(i)
-        if e in [".dll",".json"]:
-            return True
-    else:
-        return False
 
 def hasModFolder(folder):
     listdir = os.listdir(folder)
@@ -93,9 +80,36 @@ def hasModFolder(folder):
                 else:
                     return False
 
+def isModFolder(folder):
+    if os.path.isfile(folder):
+        return False
+    for i in os.listdir(folder):
+        _,e = os.path.splitext(i)
+        if e in [".dll",".json"]:
+            return True
+    else:
+        return False
+
+def loadMods():
+    folders = []
+    for i in os.listdir(stardew_mods_url):
+        if os.path.isdir(os.path.join(stardew_mods_url, i)):
+            folders.append(i)
+    return folders
+
+def simple_path(path, parent_path = None):
+    if parent_path is None:
+        parent_path = current_path
+    path = path.replace("/","\\")
+    if parent_path in path:
+        return path[len(parent_path)+1:]
+    else:
+        return path
+
 def unzip_mod(file):
     basename = os.path.basename(file)
     basepath = os.path.join(unzip_folder, basename)
+    mod_folder = None
     with ZipFile(file, "r") as zip:
         zip.extractall(basepath)
     for i in os.listdir(basepath):
@@ -104,49 +118,32 @@ def unzip_mod(file):
             mod_folder = basepath
             break
     else:
-        if os.listdir(basepath)==1:
+        if len(os.listdir(basepath))==1:
             mod_folder = os.path.join(basepath, os.listdir(basepath)[0])
     return mod_folder
 
-# this only backup portrait and character from stardew vally content files
-def backup(file, backup_folder_name = None):
-    if backup_folder_name is None:
-        backup_folder_name = os.path.basename(os.path.dirname(file))
-    _, e = os.path.splitext(file)
-    file_base_name = os.path.basename(file)
-    if e == ".xnb":
-        if backup_folder_name == "Portraits":
-            backup_folder_file = os.path.join(backup_portrait_url, file_base_name)
-            if when_backup_if_backup_folder_has_the_file_then_dont:
-                if not os.path.isfile(backup_folder_file):
-                    try:
-                        shutil.copyfile(file, backup_portrait_url)
-                    except PermissionError:
-                        if if_SMAPI_is_on_then_shutdown:
-                            shutdown_SMAPI()
-            else:
-                if os.path.isfile(backup_folder_file):
-                    os.remove(backup_folder_file)
-                shutil.copyfile(file, backup_portrait_url)
+def xnb_to_img(file, wg):
+    basename = os.path.basename(file)
+    if os.path.join(xnb_extract_packed_folder, basename)!=file:
+        shutil.copy(file, xnb_extract_packed_folder)
+    os.chdir(xnb_extract_folder)
+    os.system("UnpackFiles.bat")
+    os.chdir(current_path)
+    img, _ = os.path.splitext(basename)
+    img = os.path.join(xnb_extract_unpacked_folder,(img + ".png"))
+    if os.path.isfile(img):
+        pixmap = QPixmap(img)
+        if os.path.join(xnb_extract_packed_folder, basename)!=file:
+            for i in os.listdir(xnb_extract_packed_folder):
+                os.remove(os.path.join(xnb_extract_packed_folder,i))
+    else:
+        return None
+    for i in os.listdir(xnb_extract_unpacked_folder):
+        os.remove(os.path.join(xnb_extract_unpacked_folder,i))
+    wg.preview_lb.setPixmap(pixmap)
 
-        elif backup_folder_name == "Characters":
-            if when_backup_if_backup_folder_has_the_file_then_dont:
-                if not os.path.isfile(os.path.join(backup_character_url, file_base_name)):
-                    try:
-                        shutil.copyfile(file, backup_character_url)
-                    except PermissionError:
-                        if if_SMAPI_is_on_then_shutdown:
-                            shutdown_SMAPI()
-            else:
-                try:
-                    shutil.copyfile(file, backup_character_url)
-                except PermissionError:
-                    if if_SMAPI_is_on_then_shutdown:
-                        shutdown_SMAPI()
-        else:
-            print("초상화나 캐릭터 리텍이 아닙니다.")
-    print("xnb파일이 아닙니다.")
 
+# has none return value
 def apply_mod(mod):
     mod_basename = os.path.basename(mod)
     stardew_mod = os.path.join(stardew_mods_url,mod_basename)
@@ -162,15 +159,76 @@ def apply_mod(mod):
         if if_SMAPI_is_on_then_shutdown:
             shutdown_SMAPI()
 
-def apply_retexture(file, apply_folder_name, backup_folder = None):
-    if backup_file_before_apply_retextures:
-        backup(file)
+def apply_retexture(file, apply_folder_name):
     try:
-        shutil.move(file, apply_folder_name)
+        shutil.copy(file, apply_folder_name)
+        return f"{file} 파일 적용시켰습니다."
 
     except PermissionError:
         if if_SMAPI_is_on_then_shutdown:
             shutdown_SMAPI()
+            return "거부되어 스마피를 종료했습니다."
+        return "거부되었습니다"
+
+
+# this only backup portrait and character from stardew vally content files
+def backup_retexture(file, backup_folder_name = None):
+    if backup_folder_name is None:
+        backup_folder_name = os.path.dirname(file)
+    backup_to = os.path.basename(backup_folder_name)
+    _, e = os.path.splitext(file)
+    file_base_name = os.path.basename(file)
+    def backup(backup_folder_url, stardew_folder_url):
+        backup_folder_file = os.path.join(backup_folder_url, file_base_name)
+        stardew_folder_file = os.path.join(stardew_folder_url, file_base_name)
+        if when_backup_if_backup_folder_has_the_file_then_dont:
+            if not os.path.isfile(backup_folder_file):
+                if os.path.isfile(stardew_folder_file):
+                    try:
+                        shutil.copy(stardew_folder_file, backup_folder_url)
+                        return f"{stardew_folder_file} 백업 했습니다."
+                    except PermissionError:
+                        if if_SMAPI_is_on_then_shutdown:
+                            shutdown_SMAPI()
+                            return "거부되어 스마피를 종료했습니다."
+                        return "거부되었습니다."
+        else:
+            if os.path.isfile(backup_folder_file):
+                os.remove(backup_folder_file)
+            if os.path.isfile(stardew_folder_file):
+                try:
+                    shutil.copy(stardew_folder_file, backup_character_url)
+                    return f"{stardew_folder_file} 백업 했습니다."
+                except PermissionError:
+                    if if_SMAPI_is_on_then_shutdown:
+                        shutdown_SMAPI()
+                        return "거부되어 스마피를 종료했습니다."
+                    return "거부되었습니다."
+    if e == ".xnb":
+        if backup_to == "Portraits":
+            return backup(backup_portrait_url, stardew_portrait_url)
+        elif backup_to == "Characters":
+            return backup(backup_character_url, stardew_character_url)
+        else:
+            return "초상화나 캐릭터 리텍이 아닙니다."
+    else:
+        return f"{file}이 xnb파일이 아닙니다."
+
+def load_cash():
+    global stardew_url, stardew_mods_url, stardew_portrait_url, stardew_character_url, \
+        backup_file_before_apply_retextures, when_backup_if_backup_folder_has_the_file_then_dont, \
+        if_SMAPI_is_on_then_shutdown
+
+    if os.path.isfile(cash_file):
+        with open(cash_file, "rb") as f:
+            data = pickle.load(f)
+        stardew_url = data["stardew_url"]
+        stardew_mods_url = os.path.join(stardew_url, "Mods")
+        stardew_portrait_url = os.path.join(stardew_url, "Content", "Portraits")
+        stardew_character_url = os.path.join(stardew_url, "Content", "Characters")
+        backup_file_before_apply_retextures = data["backup_file_before_apply_retextures"]
+        when_backup_if_backup_folder_has_the_file_then_dont = data["when_backup_if_backup_folder_has_the_file_then_dont"]
+        if_SMAPI_is_on_then_shutdown = data["if_SMAPI_is_on_then_shutdown"]
 
 def shutdown_SMAPI():
     os.system("taskkill -im StardewModdingAPI.exe")
@@ -182,42 +240,30 @@ def openStardewFolder():
     else:
         return False
 
-def simple_path(path, parent_path = None):
-    if parent_path is None:
-        parent_path = current_path
-    path = path.replace("/","\\")
-    if parent_path in path:
-        return path[len(parent_path)+1:]
-    else:
-        return path
-
 def remove_stardew_mod(mod_folder):
     try:
         path = os.path.join(stardew_mods_url, mod_folder)
         shutil.rmtree(path)
-        return True
+        return f"{path} 삭제했습니다."
     except PermissionError:
-        return False
+        if if_SMAPI_is_on_then_shutdown:
+            shutdown_SMAPI()
+            return "거부되어 스마피를 종료했습니다."
+        return "거부되었습니다."
 
-def xnb_to_img(file):
-    basename = os.path.basename(file)
-    shutil.copy(file, xnb_extract_packed_folder)
-    os.chdir(xnb_extract_folder)
-    os.system("UnpackFiles.bat")
-    os.chdir(current_path)
-    img, _ = os.path.splitext(basename)
-    img = os.path.join(xnb_extract_unpacked_folder,(img + ".png"))
-    pixmap = QPixmap(img)
-    # for i in os.listdir(xnb_extract_unpacked_folder):
-    #     os.remove(os.path.join(xnb_extract_unpacked_folder,i))
-    # for i in os.listdir(xnb_extract_packed_folder):
-    #     os.remove(os.path.join(xnb_extract_packed_folder,i))
-    return pixmap
-
+def save_cash():
+    data = {
+        "stardew_url":stardew_url,
+        "backup_file_before_apply_retextures":backup_file_before_apply_retextures,
+        "when_backup_if_backup_folder_has_the_file_then_dont":when_backup_if_backup_folder_has_the_file_then_dont,
+        "if_SMAPI_is_on_then_shutdown":if_SMAPI_is_on_then_shutdown
+    }
+    with open(cash_file, "wb") as f:
+        pickle.dump(data, f)
 
 if __name__ == '__main__':
-    # file = "mods\\NPC Map Locations 2.9.3-239-2-9-3-1655579084.zip"
-    # unzip_path = unzip_mod(file)
-    # apply_mod(unzip_path)
-    file = "C:\\js\\programing\\python\\StardewMod\\img\\Caroline.xnb"
-    xnb_to_img(file)
+    import zipfile
+    file = os.path.join(current_path,"mods\\NPC Map Locations 2.9.3-239-2-9-3-1655579084.zip")
+    unzip_path = unzip_mod(file)
+    print(unzip_path)
+

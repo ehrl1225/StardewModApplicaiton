@@ -5,9 +5,11 @@ from functools import partial
 import FileManager
 import os
 
+
 class FileListItem(QWidget):
     state_changed = pyqtSignal()
     delete_item = pyqtSignal()
+
     def __init__(self, name):
         super().__init__()
         self.name = name
@@ -27,6 +29,8 @@ class FileListItem(QWidget):
 
 
 class RetextureFileWidget(QWidget):
+    add_log = pyqtSignal(str)
+    add_job = pyqtSignal(list)
 
     def __init__(self, fm):
         super().__init__()
@@ -34,7 +38,7 @@ class RetextureFileWidget(QWidget):
         self.current_path = FileManager.current_path
         self.file_list = []
         self.entered_folder = None
-        self.checked_file={}
+        self.checked_file = {}
         self.current_items = []
         self.current_items_path = []
         self.initUI()
@@ -58,7 +62,7 @@ class RetextureFileWidget(QWidget):
         vbox = QVBoxLayout(self)
 
         hbox = QHBoxLayout()
-        hbox.addWidget(self.list,2)
+        hbox.addWidget(self.list, 2)
 
         vbox2 = QVBoxLayout()
         vbox2.addWidget(self.preview_btn)
@@ -67,7 +71,7 @@ class RetextureFileWidget(QWidget):
 
         vbox.addLayout(hbox)
 
-        hbox2= QHBoxLayout()
+        hbox2 = QHBoxLayout()
         hbox2.addWidget(self.apply_character_btn)
         hbox2.addWidget(self.apply_portrait_btn)
 
@@ -79,6 +83,7 @@ class RetextureFileWidget(QWidget):
         self.list.clear()
         self.current_items = []
         self.current_items_path = []
+
         def add_item(path, index):
             item = QListWidgetItem(self.list)
             list_item = FileListItem(path)
@@ -93,7 +98,7 @@ class RetextureFileWidget(QWidget):
         if self.entered_folder is None:
             for index, i in enumerate(self.file_list):
                 simple_path = FileManager.simple_path(i)
-                self.current_items_path.append(simple_path)
+                self.current_items_path.append(i)
                 item = add_item(simple_path, index)
                 item.chb.setCheckState(self.checked_file[i]["checked"])
         else:
@@ -101,19 +106,19 @@ class RetextureFileWidget(QWidget):
             self.list.addItem(f"{simple_path} (돌아가기)")
 
             for index, i in enumerate(os.listdir(self.entered_folder)):
-                real_path = os.path.join(self.entered_folder,i)
+                real_path = os.path.join(self.entered_folder, i)
                 self.current_items_path.append(real_path)
-                item = add_item(i,index)
+                item = add_item(i, index)
                 item.chb.setCheckState(self.checked_file[self.entered_folder]["files"][real_path]["checked"])
 
     def checked(self, index):
         path = self.current_items_path[index]
         state = self.current_items[index].chb.checkState()
         if self.entered_folder:
-            self.checked_file[self.entered_folder]["files"][path]["checked"]=state
+            self.checked_file[self.entered_folder]["files"][path]["checked"] = state
             for i in self.checked_file[self.entered_folder]["files"].keys():
                 if self.checked_file[self.entered_folder]["files"][i]["checked"] == 0:
-                    self.checked_file[self.entered_folder]["checked"]=0
+                    self.checked_file[self.entered_folder]["checked"] = 0
                     break
             else:
                 self.checked_file[self.entered_folder]["checked"] = 2
@@ -136,13 +141,13 @@ class RetextureFileWidget(QWidget):
             self.file_list.append(f)
             if os.path.isdir(f):
                 self.checked_file[f] = {
-                    "files" : {},
-                    "checked" : 0
+                    "files": {},
+                    "checked": 0
                 }
                 for i in os.listdir(f):
-                    self.checked_file[f]["files"][os.path.join(f,i)]={"checked":0}
+                    self.checked_file[f]["files"][os.path.join(f, i)] = {"checked": 0}
             else:
-                self.checked_file[f]={"checked":0}
+                self.checked_file[f] = {"checked": 0}
         self.refresh_list()
         self.preview()
 
@@ -159,12 +164,11 @@ class RetextureFileWidget(QWidget):
     def preview(self):
         current_index = self.list.currentRow()
 
-        if current_index!=-1:
+        if current_index != -1:
             if self.entered_folder:
-                pixmap = FileManager.xnb_to_img(self.current_items_path[current_index-1])
+                self.add_job.emit([lambda: FileManager.xnb_to_img(self.current_items_path[current_index - 1], self)])
             else:
-                pixmap = FileManager.xnb_to_img(self.current_items_path[current_index])
-            self.preview_lb.setPixmap(pixmap)
+                self.add_job.emit([lambda : FileManager.xnb_to_img(self.current_items_path[current_index], self)])
         else:
             pixmap = QPixmap("img\\Stardew.webp")
             self.preview_lb.setPixmap(pixmap)
@@ -172,7 +176,7 @@ class RetextureFileWidget(QWidget):
     def enter_folder(self):
         index = self.list.currentRow()
         file_path = self.file_list[index]
-        if self.entered_folder is not None and index==0:
+        if self.entered_folder is not None and index == 0:
             self.entered_folder = None
             self.refresh_list()
         elif os.path.isdir(file_path):
@@ -182,22 +186,24 @@ class RetextureFileWidget(QWidget):
     def selected_files(self):
         files = []
         for i in self.checked_file.keys():
-            if self.checked_file[i]["checked"]==2:
+            if self.checked_file[i]["checked"] == 2:
                 if os.path.isfile(i):
                     files.append(i)
                 elif os.path.isdir(i):
                     for j in self.checked_file[i]["files"].keys():
                         files.append(j)
-            elif self.checked_file[i]["checked"]==0:
+            elif self.checked_file[i]["checked"] == 0:
                 if os.path.isdir(i):
                     for j in self.checked_file[i]["files"].keys():
-                        if self.checked_file[i]["files"][j]["checked"]==2:
+                        if self.checked_file[i]["files"][j]["checked"] == 2:
                             files.append(j)
         return files
 
     def apply_retexture(self, apply_to_folder, backup_folder):
         for i in self.selected_files():
-            self.fm.apply_retexture(i,apply_to_folder, backup_folder)
+            self.fm.backup_retexture(i, backup_folder)
+            self.fm.apply_retexture(i, apply_to_folder)
+
 
 if __name__ == '__main__':
     import sys

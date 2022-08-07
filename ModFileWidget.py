@@ -51,9 +51,8 @@ class ModFileWidget(QWidget):
             elif os.path.isfile(i):
                 _, extension = os.path.splitext(i)
                 if extension == ".zip":
-                    unzip_folder = FileManager.unzip_folder(i)
+                    unzip_folder = self.fm.unzip_mod(i)
                     self.fm.apply_mod(unzip_folder)
-
 
     def refresh_list(self):
         self.list.clear()

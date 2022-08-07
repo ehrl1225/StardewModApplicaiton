@@ -8,21 +8,43 @@ let assert = require('assert');
 class BufferWriter {
     constructor(buffer) {
         this.buffer = new Buffer(buffer || 0);
+        this.position = this.buffer.length;
+    }
+
+    reallocate(newSize) {
+        let newBuffer = new Buffer(newSize);
+        this.buffer.copy(newBuffer, 0, 0, this.position);
+        this.buffer = newBuffer;
+    }
+
+    assureSpace(requiredSpace) {
+        let currentLength = this.buffer.length;
+        if(this.position + requiredSpace > currentLength) {
+            this.reallocate(Math.max(currentLength * 2 + 1, currentLength + requiredSpace));
+        }
     }
 
     get length() {
-        return this.buffer.length;
+        return this.position;
     }
 
     concat(buffer) {
+        this.assureSpace(buffer.length);
+        buffer.copy(this.buffer, this.position);
         this.position += buffer.length;
-        this.buffer = Buffer.concat([this.buffer, buffer]);
-        this.buffer.type = ref.types.byte;
+    }
+
+    getBuffer() {
+        return this.buffer.slice(0, this.position);
     }
 
     writeAscii(text) {
-        let buffer = new Buffer(text.length);
-        buffer.write(text, 0, text.length, 'ascii');
+        let buffer = new Buffer(text, 'ascii');
+        this.concat(buffer);
+    }
+
+    writeUtf8(text) {
+        let buffer = new Buffer(text, 'utf8');
         this.concat(buffer);
     }
 
@@ -177,7 +199,10 @@ class CharWriter {
 
 class StringWriter {
     write(buffer, text, writerResolver) {
-        let stringBuffer = new Buffer(text.length * 2);
+        // Multiply by 4 to guarantee no sequence of characters
+        // will be truncated, as javascript returns the utf-8 length,
+        // and each utf-8 character may occupy up to 4 bytes.
+        let stringBuffer = new Buffer(text.length * 4);
         let size = stringBuffer.write(text);
         buffer.write7BitEncodedNumber(size);
         buffer.concat(stringBuffer.slice(0, size));
